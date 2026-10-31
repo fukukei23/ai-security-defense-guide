@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日からのチェックリスト — AIセキュリティ防御ガイド</title>
+    <meta name="description" content="今日からのチェックリストの解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:title" content="今日からのチェックリスト — AIセキュリティ防御ガイド">
+    <meta property="og:description" content="今日からのチェックリストの解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://fukukei23.github.io/ai-security-defense-guide/chapters/03-checklist.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="../assets/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <header class="site-header">
+        <button class="menu-toggle" aria-label="メニュー" id="menuToggle">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="../index.html" class="site-title">🛡️ AI Security Guide</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">
+            <span class="icon-light">☀️</span>
+            <span class="icon-dark">🌙</span>
+        </button>
+    </header>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="../index.html">🏠 ホーム</a>
+        </div>
+        
+        <a href="00-incident.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">📰</span>
+            事件 — AIペネトレーション
+        </a>
+        
+        <a href="01-defense.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🔍</span>
+            防御側教訓
+        </a>
+        
+        <a href="02-case-study.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🩺</span>
+            実例 — IDOR発見と修正
+        </a>
+        
+        <a href="03-checklist.html"
+           class="sidebar-link active">
+            <span class="sidebar-icon">✅</span>
+            今日からのチェックリスト
+        </a>
+        
+    </nav>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <main class="content">
+        <div class="chapter-nav-top">
+            
+            <a href="02-case-study.html" class="nav-prev">← 実例 — IDOR発見と修正</a>
+            
+            
+        </div>
+
+        <article class="chapter-body">
+            <h1>03 チェックリスト — 個人開発者が今日からやること</h1>
+<aside class="tldr">
+<p><strong>3行で分かる</strong></p>
+<ol>
+<li>個人開発アプリの防御は「全部は守れない」が前提</li>
+<li>AI自律攻撃が最初に通る穴（列挙可能なID・認証なしのAPI・シークレット露出）から順に潰す</li>
+<li>今日から1時間で回せる優先順位付きチェックリストに整理した</li>
+</ol>
+</aside>
+<hr />
+<h2>優先順位付きチェックリスト</h2>
+<p>第3章の実例（IDOR発見）も踏まえ、<strong>効いた順</strong>に並べ替えた個人開発向けのリストです。上から順に。</p>
+<h3>🔴 最優先（今日やる・1〜2時間）</h3>
+<ul>
+<li>[ ] <strong>IDOR 封じ</strong>: すべてのオブジェクトアクセス（ID付きのURL・API）で「このIDはこのユーザーのものか」を<strong>サーバ側で検証しているか</strong>。IDが連番・推測可能ならランダム化する（第3章参照）</li>
+<li>[ ] <strong>シークレット非露出</strong>: APIキー・トークン・個人情報がレスポンス・エラーメッセージ・ログに出ていないか。ログは「本文の長さだけ」記録するのが安全側</li>
+<li>[ ] <strong>fail-closed の確認</strong>: 認証失敗・予期しない入力のときに「閉じる（エラーで拒否）」実装になっているか。「とりあえず通す」実装は列挙攻撃の入り口</li>
+</ul>
+<h3>🟡 重要（今週やる）</h3>
+<ul>
+<li>[ ] <strong>レート制限</strong>: ログイン・本人確認・フォーム送信など認証系のエンドポイントに速度制限を入れる（アプリ側で単純なカウンタでも効果あり）</li>
+<li>[ ] <strong>認証状態遷移の再確認</strong>: クライアントから送られてくる値（フラグ・状態・金額等）を鵜呑みにしていないか。遷移や権限はサーバ側で都度検証</li>
+<li>[ ] <strong>資産棚卸し</strong>: 公開しているURL・エンドポイント・デプロイ物を列挙し、忘れているものがないか。依存パッケージの既知脆弱性（n-day）を確認</li>
+<li>[ ] <strong>二重送信の拒否</strong>: フォーム系のAPIは「既に回答があれば拒否」を入れる（改ざん耐性が上がる・第3章の実測）</li>
+</ul>
+<h3>🟢 余裕があれば（今月中）</h3>
+<ul>
+<li>[ ] <strong>ログの保全と定期的な目視</strong>: アクセスログを保持し、月1回「同一送信元の 401/403/404 大量」「深夜帯の異常な連続リクエスト」を目視する（行動ベース検知の個人版・第2章参照）</li>
+<li>[ ] <strong>n-day パッチの仕組み化</strong>: 依存パッケージの脆弱性情報を定期的に確認する仕組み（Dependabot 等）を入れる</li>
+<li>[ ] <strong>MFA の適用範囲確認</strong>: 管理UI・特権操作があるなら第二要素を要求する</li>
+</ul>
+<div class="callout callout-tip"><p>💡 Tip: 「企業向け」の項目（WAF の行動モード・SIEM 相関・自動ブロック基盤・ネットワーク分離）は個人開発では再現できません。必要になったらすでに事業としての責任を持っている状態なので、その時にプロ向けの仕組み（Cloudflare WAF 等のサービス）を検討すれば十分です。</p></div>
+<h2>機械に任せられる部分</h2>
+<p>防御の定着は「人間の注意」より「仕組み」が確実です。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>仕組み</th>
+<th>効くこと</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gitleaks 等のシークレットスキャン（pre-commit）</td>
+<td>APIキーの誤コミット（<a href="https://fukukei23.github.io/guides/security-basics/">セキュリティ基本ガイド</a> 参照）</td>
+</tr>
+<tr>
+<td>Dependabot / npm audit をCIに</td>
+<td>n-day 高速パッチ（チェックリスト11）</td>
+</tr>
+<tr>
+<td>テスト駆動開発</td>
+<td>存在検証・二重提出拒否などの「拒否条件」を先にテストで書いてから実装する（第3章の実施方法）</td>
+</tr>
+<tr>
+<td>デプロイ時のバージョン確認</td>
+<td>「本番がリポジトリより古い」状態の検知（第3章の余波で実際に発見）</td>
+</tr>
+</tbody>
+</table></div>
+<h2>事件系の一次情報（参照先）</h2>
+<ul>
+<li><a href="https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise">Microsoft Security Blog — Storm-0940 uses ARTEX agentic AI in ConnectWise supply chain compromise（2026-10-21）</a></li>
+<li><a href="#">Defense &amp; Detection Guide（artex-global・第三者公開の防御資料）</a></li>
+<li>本ガイドのGitHubリポジトリ: <a href="https://github.com/fukukei23/ai-security-defense-guide">fukukei23/ai-security-defense-guide</a></li>
+</ul>
+<h2>最後に — 「読んだ」で終えない</h2>
+<p>第3章で記録した通り、チェックリストは「読んで満足」では何も起きません。○×判定を自分のコードで確認したからこそ、IDOR の穴が見つかりました。最初の1項目（IDOR 封じの確認）だけでも今日やってみてください。見つかったら、それは「事件が自分事になった」ということであり、見つからなければそれは「確認済み」という証跡です。どちらも価値があります。</p>
+
+        </article>
+
+        <nav class="chapter-nav-bottom">
+            
+            <a href="02-case-study.html" class="nav-card prev">
+                <span class="nav-label">← 前の章</span>
+                <span class="nav-title">🩺 実例 — IDOR発見と修正</span>
+            </a>
+            
+            
+        </nav>
+    </main>
+
+    <footer class="site-footer">
+        <p>AI Security Defense Guide — <a href="https://github.com/fukukei23/ai-security-defense-guide">GitHub</a>
+         · <a href="https://fukukei23.github.io/claude-code-guide/">Claude Code Guide</a>
+         · <a href="https://fukukei23.github.io/guides/">技術ガイド集</a>
+         · <a href="https://fukukei23.github.io/">fukukei23</a></p>
+        <p class="site-version">v1.2 · 2026.11.01</p>
+    </footer>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事件 — AIペネトレーション — AIセキュリティ防御ガイド</title>
+    <meta name="description" content="事件 — AIペネトレーションの解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:title" content="事件 — AIペネトレーション — AIセキュリティ防御ガイド">
+    <meta property="og:description" content="事件 — AIペネトレーションの解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://fukukei23.github.io/ai-security-defense-guide/chapters/00-incident.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="../assets/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <header class="site-header">
+        <button class="menu-toggle" aria-label="メニュー" id="menuToggle">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="../index.html" class="site-title">🛡️ AI Security Guide</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">
+            <span class="icon-light">☀️</span>
+            <span class="icon-dark">🌙</span>
+        </button>
+    </header>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="../index.html">🏠 ホーム</a>
+        </div>
+        
+        <a href="00-incident.html"
+           class="sidebar-link active">
+            <span class="sidebar-icon">📰</span>
+            事件 — AIペネトレーション
+        </a>
+        
+        <a href="01-defense.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🔍</span>
+            防御側教訓
+        </a>
+        
+        <a href="02-case-study.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🩺</span>
+            実例 — IDOR発見と修正
+        </a>
+        
+        <a href="03-checklist.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">✅</span>
+            今日からのチェックリスト
+        </a>
+        
+    </nav>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <main class="content">
+        <div class="chapter-nav-top">
+            
+            
+            <a href="01-defense.html" class="nav-next">防御側教訓 →</a>
+            
+        </div>
+
+        <article class="chapter-body">
+            <h1>00 事件 — AIペネトレーション — 国家支援アクターがAI自律ペネトレーションOSSを実戦使用した事件</h1>
+<aside class="tldr">
+<p><strong>3行で分かる</strong></p>
+<ol>
+<li>中国支援の攻撃グループ Storm-0940 が、AIが自律的にペネトレーションを進めるOSS「ARTEX」を実戦使用したと Microsoft が 2026-10-21 に公式報告した（本ガイドは攻撃手順を扱わない）</li>
+<li>国家支援級の攻撃者が「AIに攻撃をやらせる」時代になった</li>
+<li>本ガイドは事件を防御側から読み解き、個人開発者のアプリへの適用実録（IDOR発見と修正）までを示す</li>
+</ol>
+</aside>
+<hr />
+<h2>何が起きたか（事実の整理）</h2>
+<p>2026-10-21、Microsoft Security Blog が次の事実を公式報告した。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>事実</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>攻撃者</td>
+<td>中国国家支援の攻撃グループ Storm-0940</td>
+</tr>
+<tr>
+<td>使われたツール</td>
+<td>AI自律ペネトレーションOSS「ARTEX」（Autumn-27 作・Go + Next.js・AGPL-3.0）</td>
+</tr>
+<tr>
+<td>侵入起点</td>
+<td>ConnectWise（リモート管理ソフト）のサプライチェーン侵害</td>
+</tr>
+<tr>
+<td>規模</td>
+<td>2,250 テナント超へのサインイン試行・パスワードスプレー 15.1 万件超</td>
+</tr>
+<tr>
+<td>ARTEX の現在</td>
+<td>元リポジトリは削除/非公開（GitHub API で 404 を実測確認済み・英語翻訳のフォーク群のみ残存）</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>出典</strong>:</p>
+<ul>
+<li><a href="https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise">Microsoft Security Blog — Storm-0940 uses ARTEX agentic AI in ConnectWise supply chain compromise</a></li>
+<li>防御側資料: <a href="#">jiwoochris/artex-global の Defense &amp; Detection Guide</a>（ARTEX 作者と無関係な第三者が公開する検知・ハードニング資料）</li>
+</ul>
+<h2>何が新しいのか</h2>
+<p>「AIに攻撃をさせる」こと自体は以前からありました。今回の報告の重みは別のところにあります。</p>
+<ol>
+<li><strong>国家支援級の攻撃者が、使った</strong>: 研究デモや紅白演習ではなく、実在の被害（サプライチェーン侵害・大規模サインイン試行）に結びついた実戦使用が公報された</li>
+<li><strong>ツールがOSSだった</strong>: 誰でも入手・改変できた状態で実戦投入された（現在は元リポジトリ消失・フォークが残存）</li>
+<li><strong>「偵察→列挙→認証試行→悪用」の多段工程をAIが自律連鎖できる</strong>枠組みが、攻撃者の実用装備になった</li>
+</ol>
+<div class="callout callout-tip"><p>💡 Tip: 防御側の視点で一番肝心なのは「攻撃が<strong>速く・疲れず・適応的</strong>になった」という性質の変化です。人間のペネトレーションテスターが夜寝る時間帯にも、AI駆動の攻撃は走り続けます。第2章「防御側教訓」はこの前提から始まります。</p></div>
+<h2>誰にとっての話か</h2>
+<p>ARTEX の作者規約は「個人学習・ローカル検証のみ・実在オンラインシステムへの実テスト禁止」でした。つまり攻撃ツールそのものを個人開発者が触る用途はありません。しかし、事件から得られる<strong>防御側の教訓</strong>は個人開発者にこそ刺さります。</p>
+<ul>
+<li>大企業には WAF・SIEM・セキュリティ専門チームがあります</li>
+<li>個人開発のアプリには、ほとんど何もありません</li>
+<li>そして攻撃者は「守りが薄い方」を探しています</li>
+</ul>
+<p>本ガイドは Microsoft 報道レベルの事実参照だけに留めて事件を整理し（攻撃手順の再現は一切扱いません）、その防御側教訓を<strong>個人開発のアプリに実際に適用したらどうなったか</strong>の実録として記録します。</p>
+<div class="callout callout-warn"><p>注意: 本ガイドは攻撃ツールの機能解説・セットアップ手順・攻撃の再現を含みません。すべての記述は防御（検知・ハードニング）の視点に限定しています。</p></div>
+<h2>本ガイドの構成</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>章</th>
+<th>内容</th>
+<th>誰が読むべきか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第1章（この章）</td>
+<td>事件の事実整理</td>
+<td>まず全体像</td>
+</tr>
+<tr>
+<td>第2章 防御側教訓</td>
+<td>行動ベース検知の核心・IoC・ハードニング14項</td>
+<td>防御の知識を入れたい人</td>
+</tr>
+<tr>
+<td>第3章 実例</td>
+<td>チェックリストを自アプリに適用→IDORの穴発見→修正の実録</td>
+<td>自分のアプリを守りたい人</td>
+</tr>
+<tr>
+<td>第4章 チェックリスト</td>
+<td>個人開発者が今日からやること</td>
+<td>すぐ手を動かしたい人</td>
+</tr>
+</tbody>
+</table></div>
+<p>関連: <a href="https://fukukei23.github.io/guides/security-basics/">セキュリティ基本ガイド（API鍵管理・漏洩時の対処）</a></p>
+
+        </article>
+
+        <nav class="chapter-nav-bottom">
+            
+            
+            <a href="01-defense.html" class="nav-card next">
+                <span class="nav-label">次の章 →</span>
+                <span class="nav-title">🔍 防御側教訓</span>
+            </a>
+            
+        </nav>
+    </main>
+
+    <footer class="site-footer">
+        <p>AI Security Defense Guide — <a href="https://github.com/fukukei23/ai-security-defense-guide">GitHub</a>
+         · <a href="https://fukukei23.github.io/claude-code-guide/">Claude Code Guide</a>
+         · <a href="https://fukukei23.github.io/guides/">技術ガイド集</a>
+         · <a href="https://fukukei23.github.io/">fukukei23</a></p>
+        <p class="site-version">v1.2 · 2026.11.01</p>
+    </footer>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

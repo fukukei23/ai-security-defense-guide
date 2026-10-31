@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>実例 — IDOR発見と修正 — AIセキュリティ防御ガイド</title>
+    <meta name="description" content="実例 — IDOR発見と修正の解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:title" content="実例 — IDOR発見と修正 — AIセキュリティ防御ガイド">
+    <meta property="og:description" content="実例 — IDOR発見と修正の解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://fukukei23.github.io/ai-security-defense-guide/chapters/02-case-study.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="../assets/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <header class="site-header">
+        <button class="menu-toggle" aria-label="メニュー" id="menuToggle">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="../index.html" class="site-title">🛡️ AI Security Guide</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">
+            <span class="icon-light">☀️</span>
+            <span class="icon-dark">🌙</span>
+        </button>
+    </header>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="../index.html">🏠 ホーム</a>
+        </div>
+        
+        <a href="00-incident.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">📰</span>
+            事件 — AIペネトレーション
+        </a>
+        
+        <a href="01-defense.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🔍</span>
+            防御側教訓
+        </a>
+        
+        <a href="02-case-study.html"
+           class="sidebar-link active">
+            <span class="sidebar-icon">🩺</span>
+            実例 — IDOR発見と修正
+        </a>
+        
+        <a href="03-checklist.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">✅</span>
+            今日からのチェックリスト
+        </a>
+        
+    </nav>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <main class="content">
+        <div class="chapter-nav-top">
+            
+            <a href="01-defense.html" class="nav-prev">← 防御側教訓</a>
+            
+            
+            <a href="03-checklist.html" class="nav-next">今日からのチェックリスト →</a>
+            
+        </div>
+
+        <article class="chapter-body">
+            <h1>02 実例 — IDOR発見と修正 — チェックリストを自アプリに当てたら穴が見つかった</h1>
+<aside class="tldr">
+<p><strong>3行で分かる</strong></p>
+<ol>
+<li>ハードニング14項（個人適用セット）を reserve-optimizer（LINE Bot の予約管理アプリ）に適用点検したら、問診票が<strong>連番IDの走査で改ざんできる IDOR の穴</strong>を発見</li>
+<li>予約IDの暗号論的ランダム化・存在検証・二重提出拒否の三層で塞いだ</li>
+<li>全 1,489 テスト緑で本番反映（v32）まで完遂</li>
+</ol>
+</aside>
+<hr />
+<h2>対象アプリの構成</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>アプリ</td>
+<td>reserve-optimizer（クリニック向け LINE Bot 予約管理・個人開発・公開リポジトリ）</td>
+</tr>
+<tr>
+<td>構成</td>
+<td>LINE Messaging API + Google Apps Script（GAS）+ Cloudflare Worker + Stripe</td>
+</tr>
+<tr>
+<td>データ</td>
+<td>予約情報・問診票（健康状態等のセンシティブな回答）</td>
+</tr>
+<tr>
+<td>特徴</td>
+<td>個人開発のため WAF・SIEM・セキュリティチームは一切なし</td>
+</tr>
+</tbody>
+</table></div>
+<p>まさに第1章で述べた「守りが薄い方」です。だからこそ、守れる範囲の防御を正しく入れる価値があります。</p>
+<h2>点検で発見した穴（IDOR）</h2>
+<p>チェックリスト項目3「<strong>サーバ側オブジェクト権限チェック</strong>」の判定で、次の設計上の穴が確定しました。</p>
+<ul>
+<li>予約IDが <strong>連番</strong>（<code>R0001</code>、<code>R0002</code>、…）で生成されていた → <strong>推測可能</strong></li>
+<li>問診票を保存するAPIが、<strong>予約IDの存在検証をしていなかった</strong> → 存在しないIDも受け付けていた</li>
+<li>かつ、既存の回答があれば <strong>無条件に上書き</strong> していた</li>
+</ul>
+<p>つまり、予約IDを1つずつずらして送り続ける（IDOR の典型的な列挙）ことで、<strong>他人の問診票の内容を読み取れる・書き換えられる</strong>状態でした。問診票は健康状態に関する回答を含むため、医療情報に準ずるデータです。</p>
+<div class="callout callout-warn"><p>注意: IDOR（Insecure Direct Object Reference）は OWASP でも解説される一般的な脆弱性カテゴリです。連番のIDをずらしてアクセスする「列挙」はIDORの常套手段として広く知られており、AI自律攻撃の「列挙→悪用」連鎖（第2章参照）でも最初に試される類の穴です。つまり「攻撃者が見つけにくい穴」ではなく、<strong>自動化された攻撃が最初に通る穴</strong>でした。</p></div>
+<pre><code>before（穴のあった構造）:
+  連番ID R0001 → API → 存在検証なし → 既存回答を無条件上書き
+
+after（三層防御）:
+  ① 予約IDを暗号論的ランダム化（R + UUID16桁）→ 列挙が不可能に
+  ② 存在しない予約IDは拒否（Reservation not found）
+  ③ 既存回答がある予約への二重提出は拒否
+</code></pre>
+<h2>検討した選択肢と決定</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>案</th>
+<th>内容</th>
+<th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A案（採用）</strong></td>
+<td>予約ID全モードで暗号論的ランダム化 + 存在検証 + 二重提出拒否。GAS側のみで完結・変更範囲が小さい</td>
+<td>✅ 採用</td>
+</tr>
+<tr>
+<td>B案（子タスク化）</td>
+<td>予約作成時に intake トークンを発行し、フォームURL に添付する方式。より強固だが Worker・フロント・LINE文言まで波及</td>
+<td>⏳ 将来の補強として併存</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>A案の理由</strong>: 攻撃の成立条件（予約IDの推測可能性）を根本から断つため。二重提出拒否は「患者の再提出UX」との引き換えですが、医療情報の改ざん耐性を優先しました（再提出が必要な場合はクリニック側で対応する運用を想定）。</p>
+<h2>修正の実施（TDD）</h2>
+<p>テスト駆動で3つの修正を積み上げました。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>修正</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1: IDOR三層防御</td>
+<td>予約IDの全モードランダム化（R + UUID16桁）・<code>saveIntakeForm</code> に存在検証と二重提出拒否を追加・エラー伝播の修正</td>
+</tr>
+<tr>
+<td>F2: webhook ログの整理</td>
+<td>webhook 本文をログに書かず長さのみ記録（シークレット/個人情報の非露出・項目13）</td>
+</tr>
+<tr>
+<td>F3: 運用手順書の追記</td>
+<td>トークンローテーション手順に URL 載せ制約と残存リスクを明記</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>検証結果</strong>: 全 1,489 テスト緑（run-all 1,425 + vitest 64・生 exit code 0 実測）で既存機能を壊さずに完了。GAS 本番に v32 として反映しました（デプロイ実測済み）。</p>
+<h2>点検プロセスで起きたこと（過程の記録）</h2>
+<ul>
+<li><strong>点検 → 発見 → 修正を1セッションで完遂</strong>: チェックリストを「読む」だけでなく「判定する」（○×を自分の実装で機械的に確認する）ことで、穴が見つかりました。「読んで満足」では発見できていませんでした</li>
+<li><strong>発見の仕方</strong>: 「予約IDをサーバがどう生成しているか」「存在検証があるか」「上書きの条件は何か」をコードで一つずつ確認する、地味な照合の積み重ねです</li>
+<li><strong>余波の発見</strong>: 点検過程で「本番の Cloudflare Worker がリポジトリのコードより古い」ことも判明（intake 転送が旧実装で・fail-closed エラー応答のためデータ書込は発生しない=危険なし・再デプロイを計画）</li>
+</ul>
+<h2>この実例から学べること</h2>
+<ol>
+<li><strong>チェックリストは「適用点検」して初めて効く</strong>: 14項を読むだけでは何も起きません。○×判定を自分のコードで確認したから、3項目目で穴が見つかった</li>
+<li><strong>個人開発にも「医療情報」はある</strong>: LINE Bot の問診票のように、個人開発アプリでもセンシティブなデータを扱う。守る対象の重要度で防御の優先度を決める</li>
+<li><strong>AI自律攻撃に弱いのは列挙可能なID</strong>: 連番IDは自動化された攻撃が最初に通る穴。ランダム化は1行の変更ではありませんが、既存テストが緑のまま足せる修正で達成できる</li>
+<li><strong>fail-closed は守りになる</strong>: Worker が古くても fail-closed エラー応答でデータ書込が発生しなかったのは結果的に安全でした。異常時に「開いたまま」より「閉じる」実装が効きます</li>
+</ol>
+<p>次章は、この経験を踏まえて<strong>個人開発者が今日からやるチェックリスト</strong>に整理します。</p>
+
+        </article>
+
+        <nav class="chapter-nav-bottom">
+            
+            <a href="01-defense.html" class="nav-card prev">
+                <span class="nav-label">← 前の章</span>
+                <span class="nav-title">🔍 防御側教訓</span>
+            </a>
+            
+            
+            <a href="03-checklist.html" class="nav-card next">
+                <span class="nav-label">次の章 →</span>
+                <span class="nav-title">✅ 今日からのチェックリスト</span>
+            </a>
+            
+        </nav>
+    </main>
+
+    <footer class="site-footer">
+        <p>AI Security Defense Guide — <a href="https://github.com/fukukei23/ai-security-defense-guide">GitHub</a>
+         · <a href="https://fukukei23.github.io/claude-code-guide/">Claude Code Guide</a>
+         · <a href="https://fukukei23.github.io/guides/">技術ガイド集</a>
+         · <a href="https://fukukei23.github.io/">fukukei23</a></p>
+        <p class="site-version">v1.2 · 2026.11.01</p>
+    </footer>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>防御側教訓 — AIセキュリティ防御ガイド</title>
+    <meta name="description" content="防御側教訓の解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:title" content="防御側教訓 — AIセキュリティ防御ガイド">
+    <meta property="og:description" content="防御側教訓の解説 — 事件から始める個人開発者のハードニング実践">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://fukukei23.github.io/ai-security-defense-guide/chapters/01-defense.html">
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="../assets/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+    <header class="site-header">
+        <button class="menu-toggle" aria-label="メニュー" id="menuToggle">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="../index.html" class="site-title">🛡️ AI Security Guide</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">
+            <span class="icon-light">☀️</span>
+            <span class="icon-dark">🌙</span>
+        </button>
+    </header>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="../index.html">🏠 ホーム</a>
+        </div>
+        
+        <a href="00-incident.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">📰</span>
+            事件 — AIペネトレーション
+        </a>
+        
+        <a href="01-defense.html"
+           class="sidebar-link active">
+            <span class="sidebar-icon">🔍</span>
+            防御側教訓
+        </a>
+        
+        <a href="02-case-study.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">🩺</span>
+            実例 — IDOR発見と修正
+        </a>
+        
+        <a href="03-checklist.html"
+           class="sidebar-link">
+            <span class="sidebar-icon">✅</span>
+            今日からのチェックリスト
+        </a>
+        
+    </nav>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <main class="content">
+        <div class="chapter-nav-top">
+            
+            <a href="00-incident.html" class="nav-prev">← 事件 — AIペネトレーション</a>
+            
+            
+            <a href="02-case-study.html" class="nav-next">実例 — IDOR発見と修正 →</a>
+            
+        </div>
+
+        <article class="chapter-body">
+            <h1>01 防御側教訓 — 行動は隠せない・指紋は変えられる</h1>
+<aside class="tldr">
+<p><strong>3行で分かる</strong></p>
+<ol>
+<li>検知の核心は「静的指紋（UA・ポート）は演者が変えられる・<strong>行動（多段連鎖・無休止稼働・適応的変異）は隠せない</strong>」の一本線</li>
+<li>ハードニング14項のうち個人開発者に適用できるのは約11項</li>
+<li>最も威力が大きいのは IDOR 封じ（サーバ側の所有権チェック）</li>
+</ol>
+</aside>
+<hr />
+<h2>核心思想 — 「指紋は変えられる・行動は隠せない」</h2>
+<p>ARTEX の防御側資料（第三者公開の Defense &amp; Detection Guide）が全編で貫く前提があります。</p>
+<div class="callout callout-info"><p>User-Agent やポート番号などの<strong>静的指紋は攻撃の運用者が自由に変更できる</strong>。しかし攻撃の<strong>行動パターン</strong> — 同一送信元が「偵察→列挙→認証試行→悪用」を1つのセッション連鎖で進めること・人間が休む時間帯にも無休止で動き続けること・失敗応答（401/403/429）に反応して系統的にリクエストを変異させること — は攻撃の本質であり、隠すことが困難である。</p></div>
+<p>つまり検知は<strong>行動ベースを主軸</strong>に組み、UAなどの静的指紋は<strong>補助的な手がかり</strong>（非決定的・掛け算で使う）に留めるのが正しい設計です。<strong>静的指紋が見つからないことは安全を意味しません</strong>。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>従来の検知がAI自律攻撃に効きにくい理由</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>固定シグネチャの不一致</td>
+<td>ペイロードが文脈で変わるため、既知パターン照合に引っかからない</td>
+</tr>
+<tr>
+<td>レート検知のすり抜け</td>
+<td>低速・人間らしいバーストで動くことで速度制限を回避できる</td>
+</tr>
+<tr>
+<td>「夜寝る」時間帯の消滅</td>
+<td>人間の攻撃は深夜に減るが、AI駆動攻撃は走り続ける</td>
+</tr>
+<tr>
+<td>偵察と侵入のタイムラグ消失</td>
+<td>人間なら数日空いていた多段工程が、数分で連鎖する</td>
+</tr>
+</tbody>
+</table></div>
+<h2>検知の実践（公開されている防御資料の全体像）</h2>
+<p>artex-global リポジトリは、ARTEX に依存しない汎用行動ルールを含む検知資料一式を公開しています（CI でルール自体の検証もしています）。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>種類</th>
+<th>内容</th>
+<th>補足</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sigma 個別ルール</td>
+<td>破壊的コマンドのハンティング（<code>rm -rf</code>・<code>DROP DATABASE</code> 等の異常実行）</td>
+<td>ホスト側・手がかり扱い</td>
+</tr>
+<tr>
+<td>Sigma 相関ルール</td>
+<td>同一送信元の「列挙→プローブ→認証」多段パターン（10分窓で相関）等 4種</td>
+<td><strong>行動ベース・汎用</strong></td>
+</tr>
+<tr>
+<td>Suricata</td>
+<td>既知 UA（<code>artex-enrich/1.0</code>・<code>norma/0.4</code> 等）を検知する 3ルール</td>
+<td>補助手がかり・非決定的</td>
+</tr>
+<tr>
+<td>IoC</td>
+<td>UA・ポート（<code>:8787</code> 管理UI等）・ファイルパス・DBテーブル名を CSV/MISP 化</td>
+<td>有効期間と誤ブロック審査を前提に運用</td>
+</tr>
+<tr>
+<td>ATT&amp;CK Navigator</td>
+<td>攻撃技術を 9 技術にマッピングしたレイヤ</td>
+<td>呼称の統一・訓練用</td>
+</tr>
+<tr>
+<td>ホストトリアージスクリプト</td>
+<td>読み取り系指標を一括確認</td>
+<td>侵害後の初動</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout callout-tip"><p>💡 Tip: 個人開発者には Sigma/Suricata を運用する SIEM はありません。しかし「<strong>同一送信元が列挙→認証試行を多段で続けていないか</strong>」という相関の発想は、アクセスログを月1回読むだけでも再現できます。Webサーバのアクセスログで「同一IPが短時間に 401/403/404 を大量に返されている行」を目視するだけでも、列挙攻撃の兆候は拾えます。</p></div>
+<h2>ハードニング 14 項（§5 チェックリスト）</h2>
+<p>防御ガイド §5 のハードニング・チェックリスト14項です。個人開発者に適用できる項目と、企業向けの項目を分けました。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>項目</th>
+<th>要点</th>
+<th>個人適用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>適応的レート制限</td>
+<td>ログイン・本人確認・重要APIに IP/アカウント/行動ベースの速度制限</td>
+<td>✅ 可能</td>
+</tr>
+<tr>
+<td>2</td>
+<td>MFA</td>
+<td>重要操作に第二要素を要求・パスワード漏えいでも阻止</td>
+<td>✅ 可能（管理UIの有無次第）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>サーバ側オブジェクト権限チェック</td>
+<td>全オブジェクトアクセスに所有者検証を実装し IDOR を防ぐ</td>
+<td>✅ <strong>最優先</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>認証状態遷移のサーバ側再検証</td>
+<td>未認証→認証・一般→特権の遷移を都度検証・クライアントの値を鵜呑みにしない</td>
+<td>✅ 可能</td>
+</tr>
+<tr>
+<td>5</td>
+<td>補助チャネルの認証強度統一</td>
+<td>パートナー・採用等の別口の本人確認を本サービス同等に</td>
+<td>✅ 可能（口が多いほど重要）</td>
+</tr>
+<tr>
+<td>6</td>
+<td>漏えい資格情報の検知</td>
+<td>既知漏えいリスト照合・ログイン速度/場所の異常で先行ブロック</td>
+<td>△ 簡易版のみ</td>
+</tr>
+<tr>
+<td>7</td>
+<td>WAF の行動ベース運用</td>
+<td>固定シグネチャに頼らず行動モードで運用</td>
+<td>❌ 企業向け</td>
+</tr>
+<tr>
+<td>8</td>
+<td>非公式 IP ブロックリスト禁止</td>
+<td>出所不明の共有リストを使わず・公式 IoC を審査の上適用</td>
+<td>✅ 可能（やらないことを選ぶ判断）</td>
+</tr>
+<tr>
+<td>9</td>
+<td>SIEM 相関ルール</td>
+<td>多段パターン相関をSIEMに実装</td>
+<td>❌ 企業向け</td>
+</tr>
+<tr>
+<td>10</td>
+<td>ログの十分な保持</td>
+<td>認証・アクセス・egressログを保持（自律攻撃は速い・事後追跡に必須）</td>
+<td>✅ 可能</td>
+</tr>
+<tr>
+<td>11</td>
+<td>資産棚卸し + n-day高速パッチ</td>
+<td>公開資産を棚卸しし既知脆弱性を最短修正（CISA KEV 活用）</td>
+<td>✅ 可能</td>
+</tr>
+<tr>
+<td>12</td>
+<td>ネットワークセグメンテーション</td>
+<td>横展開の爆発半径を縮小</td>
+<td>❌ 企業向け</td>
+</tr>
+<tr>
+<td>13</td>
+<td>シークレット非露出</td>
+<td>APIキー・トークンをレスポンス・ログ・エラーに出さない（AIはエラー応答から手がかりを集める）</td>
+<td>✅ 可能</td>
+</tr>
+<tr>
+<td>14</td>
+<td>自動ブロック/隔離</td>
+<td>人間の承認待ちでは自律攻撃の速度に追いつかない</td>
+<td>❌ 企業向け</td>
+</tr>
+</tbody>
+</table></div>
+<div class="callout callout-danger"><p>重要: 「企業向け」の項目は個人開発では再現できませんが、その<strong>発想</strong>は借用できます。例えば #14（自動ブロック）の発想は「Webサーバの fail2ban 相当をアプリでも用意する（連続 401 で一時遮断する等）」に落とせますし、#7（WAF行動モード）の発想は「アクセスログの行動パターンを定期的に人間が確認する」に落とせます。</p></div>
+<h2>第3章へ — チェックリストを実際に当ててみた</h2>
+<p>この14項（の個人適用セット）を、CC の個人プロジェクト「reserve-optimizer」（LINE Bot の予約管理アプリ・GAS + Cloudflare Worker 構成）に適用点検したところ、<strong>項目3（IDOR封じ）の判定で重大な穴が1つ見つかりました</strong>。第3章はその発見から修正までの実録です。</p>
+
+        </article>
+
+        <nav class="chapter-nav-bottom">
+            
+            <a href="00-incident.html" class="nav-card prev">
+                <span class="nav-label">← 前の章</span>
+                <span class="nav-title">📰 事件 — AIペネトレーション</span>
+            </a>
+            
+            
+            <a href="02-case-study.html" class="nav-card next">
+                <span class="nav-label">次の章 →</span>
+                <span class="nav-title">🩺 実例 — IDOR発見と修正</span>
+            </a>
+            
+        </nav>
+    </main>
+
+    <footer class="site-footer">
+        <p>AI Security Defense Guide — <a href="https://github.com/fukukei23/ai-security-defense-guide">GitHub</a>
+         · <a href="https://fukukei23.github.io/claude-code-guide/">Claude Code Guide</a>
+         · <a href="https://fukukei23.github.io/guides/">技術ガイド集</a>
+         · <a href="https://fukukei23.github.io/">fukukei23</a></p>
+        <p class="site-version">v1.2 · 2026.11.01</p>
+    </footer>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIセキュリティ防御ガイド</title>
+    <meta name="description" content="事件から始める個人開発者のハードニング実践 — AIペネトレーション事件の防御側教訓とIDOR修正実例">
+    <meta property="og:title" content="AIセキュリティ防御ガイド">
+    <meta property="og:description" content="事件から始める個人開発者のハードニング実践 — AIペネトレーション事件の防御側教訓とIDOR修正実例">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://fukukei23.github.io/ai-security-defense-guide/">
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body class="index-page">
+    <header class="site-header">
+        <span class="site-title">🛡️ AI Security Guide</span>
+        <button class="theme-toggle" id="themeToggle" aria-label="テーマ切替">
+            <span class="icon-light">☀️</span>
+            <span class="icon-dark">🌙</span>
+        </button>
+    </header>
+
+    <main class="content">
+        <section class="hero">
+            <h1>AIセキュリティ防御ガイド</h1>
+            <p>事件から始める個人開発者の<br>ハードニング実践 — 攻撃の事実から防御を組み立てる</p>
+        </section>
+
+        
+        <section class="chapter-category">
+            <h2 class="chapter-category-heading">📰 事件と教訓</h2>
+            <div class="chapter-grid">
+                
+                <a href="chapters/00-incident.html" class="chapter-card">
+                    <div class="card-icon">📰</div>
+                    <div class="card-number">第00章</div>
+                    <h2 class="card-title">事件 — AIペネトレーション</h2>
+                    <p class="card-desc">ARTEXとStorm-0940・Microsoft公式報告の事実と何が新しいか</p>
+                </a>
+                
+                <a href="chapters/01-defense.html" class="chapter-card">
+                    <div class="card-icon">🔍</div>
+                    <div class="card-number">第01章</div>
+                    <h2 class="card-title">防御側教訓</h2>
+                    <p class="card-desc">行動ベース検知の核心・IoC・ハードニング14項と個人適用セット</p>
+                </a>
+                
+            </div>
+        </section>
+        
+        <section class="chapter-category">
+            <h2 class="chapter-category-heading">🛡️ 実践と実例</h2>
+            <div class="chapter-grid">
+                
+                <a href="chapters/02-case-study.html" class="chapter-card">
+                    <div class="card-icon">🩺</div>
+                    <div class="card-number">第02章</div>
+                    <h2 class="card-title">実例 — IDOR発見と修正</h2>
+                    <p class="card-desc">reserve-optimizerへの適用点検・三層修正・1,489テスト実測</p>
+                </a>
+                
+                <a href="chapters/03-checklist.html" class="chapter-card">
+                    <div class="card-icon">✅</div>
+                    <div class="card-number">第03章</div>
+                    <h2 class="card-title">今日からのチェックリスト</h2>
+                    <p class="card-desc">個人開発者が今すぐやれる防御の基本セット</p>
+                </a>
+                
+            </div>
+        </section>
+        
+
+        <section class="features">
+            <h2>📖 このガイドの特徴</h2>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <span class="feature-icon">📰</span>
+                    <h3>事件の事実から始める</h3>
+                    <p>Microsoft公式報告レベルの一次情報だけを材料に、何が変わったかを整理</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🛡️</span>
+                    <h3>防御視点だけを主軸に</h3>
+                    <p>攻撃手順の再現ではなく、検知・IoC・ハードニングの視点でまとめる</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🩺</span>
+                    <h3>自プロジェクト適用の実例つき</h3>
+                    <p>チェックリストを自分のアプリに当てたらIDORの穴が見つかり、修正した記録</p>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📱</span>
+                    <h3>モバイル対応</h3>
+                    <p>スマホからいつでも見返せるレスポンシブデザイン</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p>AI Security Defense Guide — <a href="https://github.com/fukukei23/ai-security-defense-guide">GitHub</a>
+         · <a href="https://fukukei23.github.io/claude-code-guide/">Claude Code Guide</a>
+         · <a href="https://fukukei23.github.io/guides/">技術ガイド集</a>
+         · <a href="https://fukukei23.github.io/">fukukei23</a></p>
+        <p class="site-version">v1.2 · 2026.11.01</p>
+    </footer>
+
+    <script src="assets/script.js"></script>
+</body>
+</html>
